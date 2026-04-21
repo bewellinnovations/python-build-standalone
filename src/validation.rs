@@ -1732,13 +1732,16 @@ fn validate_extension_modules(
         }
     }
 
-    if (is_linux || is_macos) && python_major_minor != "3.8" {
-        wanted.extend([
-            "_testbuffer",
-            "_testimportmultiple",
-            "_testmultiphase",
-            "_xxtestfuzz",
-        ]);
+    if is_linux || is_macos {
+        // These test modules have minimum-python-version 3.10 in extension-modules.yml.
+        if python_major_minor != "3.8" {
+            wanted.extend([
+                "_testbuffer",
+                "_testimportmultiple",
+                "_testmultiphase",
+                "_xxtestfuzz",
+            ]);
+        }
 
         if !static_crt {
             wanted.insert("_testcapi");
