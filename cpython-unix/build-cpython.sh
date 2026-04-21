@@ -275,14 +275,14 @@ fi
 # Show PGO instrumentation statistics to aid debugging PGO.
 if [ -n "${PYTHON_MEETS_MINIMUM_VERSION_3_12}" ]; then
     patch -p1 -i "${ROOT}/patch-pgo-print-statistics.patch"
-else
+elif [ -n "${PYTHON_MEETS_MINIMUM_VERSION_3_10}" ]; then
     patch -p1 -i "${ROOT}/patch-pgo-print-statistics-3.11.patch"
 fi
 
 # Use a pool of PGO data files with merging to prevent data loss.
 if [ -n "${PYTHON_MEETS_MINIMUM_VERSION_3_12}" ]; then
     patch -p1 -i "${ROOT}/patch-pgo-file-pool.patch"
-else
+elif [ -n "${PYTHON_MEETS_MINIMUM_VERSION_3_10}" ]; then
     patch -p1 -i "${ROOT}/patch-pgo-file-pool-3.11.patch"
 fi
 
@@ -331,6 +331,36 @@ fi
 # ship an /etc/ssl/cert.pem or a hashed /etc/ssl/cert/ directory. Patch to look at
 # /etc/pki/tls/cert.pem instead, if that file exists and /etc/ssl/cert.pem does not.
 patch -p1 -i ${ROOT}/patch-cpython-redhat-cert-file.patch
+
+# Python 3.8's _decimal.c casts to 'uchar' which was available via system headers
+# in older toolchains but is not defined in LLVM 22+. Replace with 'unsigned char'.
+if [ -z "${PYTHON_MEETS_MINIMUM_VERSION_3_10}" ]; then
+    sed -i 's/(uchar)/(unsigned char)/g' Modules/_decimal/_decimal.c
+fi
+
+# Python 3.8's _sqlite/*.c use MODULE_NAME which isn't passed as a -D flag when
+# built as a static module. MODULE_NAME is "sqlite3" (from setup.py). Replace
+# the identifier with the string literal; adjacent C string literals concatenate.
+if [ -z "${PYTHON_MEETS_MINIMUM_VERSION_3_10}" ]; then
+    sed -i 's/MODULE_NAME/"sqlite3"/g' \
+        Modules/_sqlite/cache.c \
+        Modules/_sqlite/connection.c \
+        Modules/_sqlite/cursor.c \
+        Modules/_sqlite/module.c \
+        Modules/_sqlite/prepare_protocol.c \
+        Modules/_sqlite/row.c \
+        Modules/_sqlite/statement.c
+fi
+
+# Python 3.8's readline.c uses VFunction and CPFunction from old readline/libedit
+# headers. Modern libedit (2024) removed these types (no longer defines
+# _RL_FUNCTION_TYPEDEF). Replace with the modern equivalents.
+if [ -z "${PYTHON_MEETS_MINIMUM_VERSION_3_10}" ]; then
+    sed -i \
+        -e 's/(VFunction \*)/(rl_compdisp_func_t *)/g' \
+        -e 's/char \*, CPFunction \*/char *, rl_compentry_func_t */g' \
+        Modules/readline.c
+fi
 
 # Cherry-pick an upstream change in Python 3.15 to build _asyncio as
 # static (which we do anyway in our own fashion) and more importantly to
@@ -434,7 +464,7 @@ CONFIGURE_FLAGS="
 # this patch mildly conflicts with the macos-only patch-python-link-modules
 # applied above, so you will need to resolve that conflict if you re-enable
 # this for macos.
-if [[ "${PYBUILD_PLATFORM}" != macos* ]]; then
+if [[ "${PYBUILD_PLATFORM}" != macos* ]] && [ -n "${PYTHON_MEETS_MINIMUM_VERSION_3_10}" ]; then
     if [ -n "${PYTHON_MEETS_MINIMUM_VERSION_3_12}" ]; then
         patch -p1 -i "${ROOT}/patch-python-configure-add-enable-static-libpython-for-interpreter.patch"
     else
@@ -702,7 +732,7 @@ fi
 # sem_clockwait, causing threading.Event.wait() to use CLOCK_REALTIME instead of
 # CLOCK_MONOTONIC. This makes waits hang when the system clock jumps backward.
 # The patch declares sem_clockwait as a weak symbol and checks at runtime.
-if [[ "${PYBUILD_PLATFORM}" != macos* ]]; then
+if [[ "${PYBUILD_PLATFORM}" != macos* ]] && [ -n "${PYTHON_MEETS_MINIMUM_VERSION_3_10}" ]; then
     if [ -n "${PYTHON_MEETS_MINIMUM_VERSION_3_15}" ]; then
         patch -p1 -i ${ROOT}/patch-sem-clockwait-weak-3.15.patch
     elif [ -n "${PYTHON_MEETS_MINIMUM_VERSION_3_13}" ]; then
