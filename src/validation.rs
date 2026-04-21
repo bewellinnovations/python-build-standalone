@@ -971,7 +971,10 @@ fn validate_elf<Elf: FileHeader<Endian = Endianness>>(
             allowed_libraries.push(format!("libpython{python_major_minor}t.so.1.0"));
             allowed_libraries.push(format!("libpython{python_major_minor}td.so.1.0"));
         } else {
-            // On glibc, we can use `$ORIGIN` for relative, reloctable linking
+            // On glibc, we can use `$ORIGIN` for relative, relocatable linking.
+            // Python 3.10+ uses a statically-linked interpreter, so its binary
+            // has no DT_NEEDED for libpython. Python 3.8 still dynamically links
+            // the interpreter, so its binary has a plain DT_NEEDED entry.
             allowed_libraries.push(format!(
                 "$ORIGIN/../lib/libpython{python_major_minor}.so.1.0"
             ));
@@ -984,6 +987,10 @@ fn validate_elf<Elf: FileHeader<Endian = Endianness>>(
             allowed_libraries.push(format!(
                 "$ORIGIN/../lib/libpython{python_major_minor}td.so.1.0"
             ));
+            allowed_libraries.push(format!("libpython{python_major_minor}.so.1.0"));
+            allowed_libraries.push(format!("libpython{python_major_minor}d.so.1.0"));
+            allowed_libraries.push(format!("libpython{python_major_minor}t.so.1.0"));
+            allowed_libraries.push(format!("libpython{python_major_minor}td.so.1.0"));
         }
     }
 
@@ -1647,8 +1654,10 @@ fn validate_extension_modules(
     let mut wanted = BTreeSet::from_iter(GLOBAL_EXTENSIONS.iter().copied());
 
     // _tkinter requires Tcl 9 API compatibility patches that only exist for 3.10+.
+    // _zoneinfo was added in Python 3.9.
     if python_major_minor == "3.8" {
         wanted.remove("_tkinter");
+        wanted.remove("_zoneinfo");
     }
 
     match python_major_minor {
@@ -1723,7 +1732,7 @@ fn validate_extension_modules(
         }
     }
 
-    if is_linux || is_macos {
+    if (is_linux || is_macos) && python_major_minor != "3.8" {
         wanted.extend([
             "_testbuffer",
             "_testimportmultiple",
