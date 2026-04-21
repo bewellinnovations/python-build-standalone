@@ -6,7 +6,7 @@ BUILD := $(HERE)/build.py
 NULL :=
 SPACE := $(subst ,, )
 
-ALL_PYTHON_VERSIONS := 3.10 3.11 3.12 3.13 3.14 3.15
+ALL_PYTHON_VERSIONS := 3.8 3.10 3.11 3.12 3.13 3.14 3.15
 
 ifndef PYBUILD_TARGET_TRIPLE
     $(error PYBUILD_TARGET_TRIPLE not defined)
@@ -112,6 +112,9 @@ $(OUTDIR)/autoconf-$(AUTOCONF_VERSION)-$(PACKAGE_SUFFIX).tar: $(AUTOCONF_DEPENDS
 
 $(OUTDIR)/bdb-$(BDB_VERSION)-$(PACKAGE_SUFFIX).tar: $(PYTHON_DEP_DEPENDS) $(HERE)/build-bdb.sh
 	$(RUN_BUILD) --docker-image $(DOCKER_IMAGE_BUILD) bdb
+
+$(OUTDIR)/gdbm-$(GDBM_VERSION)-$(PACKAGE_SUFFIX).tar: $(PYTHON_DEP_DEPENDS) $(HERE)/build-gdbm.sh
+	$(RUN_BUILD) --docker-image $(DOCKER_IMAGE_BUILD) gdbm
 
 $(OUTDIR)/bzip2-$(BZIP2_VERSION)-$(PACKAGE_SUFFIX).tar: $(PYTHON_DEP_DEPENDS) $(HERE)/build-bzip2.sh
 	$(RUN_BUILD) --docker-image $(DOCKER_IMAGE_BUILD) bzip2
@@ -252,6 +255,7 @@ PYTHON_DEPENDS_$(1) := \
     $$(if $$(NEED_BDB),$$(OUTDIR)/bdb-$$(BDB_VERSION)-$$(PACKAGE_SUFFIX).tar) \
     $$(if $$(NEED_BZIP2),$$(OUTDIR)/bzip2-$$(BZIP2_VERSION)-$$(PACKAGE_SUFFIX).tar) \
     $$(if $$(NEED_EXPAT),$$(OUTDIR)/expat-$$(EXPAT_VERSION)-$$(PACKAGE_SUFFIX).tar) \
+    $$(if $$(NEED_GDBM),$$(OUTDIR)/gdbm-$$(GDBM_VERSION)-$$(PACKAGE_SUFFIX).tar) \
     $$(if $$(NEED_LIBEDIT),$$(OUTDIR)/libedit-$$(LIBEDIT_VERSION)-$$(PACKAGE_SUFFIX).tar) \
     $$(if $$(NEED_LIBFFI_3_3),$$(OUTDIR)/libffi-3.3-$$(LIBFFI_3.3_VERSION)-$$(PACKAGE_SUFFIX).tar) \
     $$(if $$(NEED_LIBFFI),$$(OUTDIR)/libffi-$$(LIBFFI_VERSION)-$$(PACKAGE_SUFFIX).tar) \

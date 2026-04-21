@@ -47,6 +47,15 @@ DOWNLOADS = {
         "licenses": ["bzip2-1.0.6"],
         "license_file": "LICENSE.bzip2.txt",
     },
+    "cpython-3.8": {
+        "url": "https://www.python.org/ftp/python/3.8.20/Python-3.8.20.tar.xz",
+        "size": 18962788,
+        "sha256": "6fb89a7124201c61125c0ab4cf7f6894df339a40c02833bfd28ab4d7691fafb4",
+        "version": "3.8.20",
+        "licenses": ["Python-2.0", "CNRI-Python"],
+        "license_file": "LICENSE.cpython.txt",
+        "python_tag": "cp38",
+    },
     "cpython-3.10": {
         "url": "https://www.python.org/ftp/python/3.10.20/Python-3.10.20.tar.xz",
         "size": 19868028,
@@ -109,6 +118,15 @@ DOWNLOADS = {
         "library_names": ["expat"],
         "licenses": ["MIT"],
         "license_file": "LICENSE.expat.txt",
+    },
+    "gdbm": {
+        "url": "https://ftp.gnu.org/gnu/gdbm/gdbm-1.24.tar.gz",
+        "size": 1195931,
+        "sha256": "695e9827fdf763513f133910bc7e6cfdb9187943a4fec943e57449723d2b8dbf",
+        "version": "1.24",
+        "library_names": ["gdbm"],
+        "licenses": ["GPL-3.0-or-later"],
+        "license_file": "LICENSE.gdbm.txt",
     },
     "jom-windows-bin": {
         "url": "http://download.qt.io/official_releases/jom/jom_1_1_4.zip",
