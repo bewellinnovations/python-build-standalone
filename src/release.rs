@@ -749,14 +749,14 @@ pub fn produce_install_only_stripped(tar_gz_path: &Path, llvm_dir: &Path) -> Res
 static LLVM_URL: Lazy<Url> = Lazy::new(|| {
     if cfg!(target_os = "macos") {
         if std::env::consts::ARCH == "aarch64" {
-            Url::parse("https://github.com/indygreg/toolchain-tools/releases/download/toolchain-bootstrap%2F20260410/llvm-22.1.3+20260410-aarch64-apple-darwin.tar.zst").unwrap()
+            Url::parse("https://github.com/indygreg/toolchain-tools/releases/download/toolchain-bootstrap%2F20260410/llvm-22.1.3%2B20260410-aarch64-apple-darwin.tar.zst").unwrap()
         } else if std::env::consts::ARCH == "x86_64" {
-            Url::parse("https://github.com/indygreg/toolchain-tools/releases/download/toolchain-bootstrap%2F20260410/llvm-22.1.3+20260410-x86_64-apple-darwin.tar.zst").unwrap()
+            Url::parse("https://github.com/indygreg/toolchain-tools/releases/download/toolchain-bootstrap%2F20260410/llvm-22.1.3%2B20260410-x86_64-apple-darwin.tar.zst").unwrap()
         } else {
             panic!("unsupported macOS architecture");
         }
     } else if cfg!(target_os = "linux") {
-        Url::parse("https://github.com/indygreg/toolchain-tools/releases/download/toolchain-bootstrap%2F20260410/llvm-22.1.3+20260410-gnu_only-x86_64-unknown-linux-gnu.tar.zst").unwrap()
+        Url::parse("https://github.com/indygreg/toolchain-tools/releases/download/toolchain-bootstrap%2F20260410/llvm-22.1.3%2B20260410-gnu_only-x86_64-unknown-linux-gnu.tar.zst").unwrap()
     } else {
         panic!("unsupported platform");
     }
@@ -779,9 +779,8 @@ pub async fn bootstrap_llvm() -> Result<PathBuf> {
 
     println!("Downloading LLVM tarball from: {url}");
 
-    // Create the temp dir inside build/ so it's on the same filesystem as llvm_dir,
-    // allowing rename() to work without a cross-device copy.
-    let temp_dir = tempfile::TempDir::new_in(&llvm_dir.parent().unwrap())?;
+    // Create a temporary directory to download and extract the LLVM tarball.
+    let temp_dir = tempfile::TempDir::new()?;
 
     // Download the tarball.
     let tarball_path = temp_dir
