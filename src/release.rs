@@ -779,8 +779,9 @@ pub async fn bootstrap_llvm() -> Result<PathBuf> {
 
     println!("Downloading LLVM tarball from: {url}");
 
-    // Create a temporary directory to download and extract the LLVM tarball.
-    let temp_dir = tempfile::TempDir::new()?;
+    // Create the temp dir inside build/ (same filesystem as llvm_dir) so that
+    // the final rename() does not cross filesystem boundaries (EXDEV).
+    let temp_dir = tempfile::TempDir::new_in(llvm_dir.parent().unwrap())?;
 
     // Download the tarball.
     let tarball_path = temp_dir
