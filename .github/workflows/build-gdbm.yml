@@ -41,12 +41,15 @@ concurrency:
 env:
   FORCE_COLOR: 1
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  RELEASE_TAG: bewell-builds
 
 permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       TARGET_TRIPLE: ${{ inputs.target_triple || 'x86_64-unknown-linux-gnu' }}
       PYTHON_VERSION: ${{ inputs.python_version || '3.13' }}
@@ -55,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
@@ -77,7 +80,7 @@ jobs:
             --python "cpython-${PYTHON_VERSION}" \
             --options "${BUILD_OPTIONS}"
 
-      - name: Upload Distribution
+      - name: Upload Distribution (full archive)
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: cpython-${{ env.PYTHON_VERSION }}-${{ env.TARGET_TRIPLE }}-${{ env.BUILD_OPTIONS }}
@@ -104,8 +107,70 @@ jobs:
       - name: Convert to install_only_stripped
         run: target/release/pythonbuild convert-install-only-stripped dist/*-install_only.tar.gz
 
-      - name: Upload install_only_stripped
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: cpython-${{ env.PYTHON_VERSION }}-${{ env.TARGET_TRIPLE }}-${{ env.BUILD_OPTIONS }}-install_only_stripped
-          path: dist/*-install_only_stripped.tar.gz
+      - name: Ensure GitHub Release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" 2>/dev/null \
+          || gh release create "${RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Bewell Python Builds" \
+            --notes "Python builds with gdbm support. Updated automatically on each build." \
+            --prerelease
+
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for f in dist/*-install_only_stripped.tar.gz; do
+            # Overwrite if the same file already exists (e.g. re-running a build)
+            gh release upload "${RELEASE_TAG}" "$f" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --clobber
+          done
+
+      - name: Regenerate manifest and commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Download the SHA256SUMS file that pythonbuild maintains for the release
+          gh release download "${RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "SHA256SUMS" \
+            --output /tmp/SHA256SUMS 2>/dev/null || true
+
+          # Compute checksum for our new file and append/replace in SHA256SUMS
+          for f in dist/*-install_only_stripped.tar.gz; do
+            fname=$(basename "$f")
+            sha256=$(sha256sum "$f" | awk '{print $1}')
+            # Remove any existing entry for this filename, then add updated one
+            grep -v "  ${fname}$" /tmp/SHA256SUMS > /tmp/SHA256SUMS.new 2>/dev/null || true
+            echo "${sha256}  ${fname}" >> /tmp/SHA256SUMS.new
+            mv /tmp/SHA256SUMS.new /tmp/SHA256SUMS
+          done
+
+          # Re-upload the updated SHA256SUMS
+          gh release upload "${RELEASE_TAG}" /tmp/SHA256SUMS \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
+
+          # Regenerate the uv manifest from the full SHA256SUMS
+          uv run generate-uv-manifest.py \
+            "${RELEASE_TAG}" \
+            "${GITHUB_REPOSITORY}" \
+            < /tmp/SHA256SUMS \
+            > uv-download-metadata.json
+
+          # Commit the updated manifest back to the branch
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add uv-download-metadata.json
+          git diff --cached --quiet && echo "No manifest changes" && exit 0
+          git commit -m "Update uv-download-metadata.json [skip ci]"
+          # Retry loop handles concurrent builds updating the manifest
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && \
+            git push origin "${GITHUB_REF_NAME}" && break
+            sleep $((i * 3))
+          done
