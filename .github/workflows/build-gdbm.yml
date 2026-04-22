@@ -97,3 +97,15 @@ jobs:
 
       - name: Validate Distribution
         run: target/release/pythonbuild validate-distribution dist/*.tar.zst
+
+      - name: Convert to install_only
+        run: target/release/pythonbuild convert-install-only dist/*.tar.zst
+
+      - name: Convert to install_only_stripped
+        run: target/release/pythonbuild convert-install-only-stripped dist/*-install_only.tar.gz
+
+      - name: Upload install_only_stripped
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: cpython-${{ env.PYTHON_VERSION }}-${{ env.TARGET_TRIPLE }}-${{ env.BUILD_OPTIONS }}-install_only_stripped
+          path: dist/*-install_only_stripped.tar.gz
